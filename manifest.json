@@ -1,0 +1,34 @@
+{
+  "manifest_version": 2,
+  "name": "Quick Card Delete Button",
+  "version": "1.0",
+  "description": "Deletes messages directly via an icon in the message list.",
+  "author": "sim32101",
+  "permissions": [
+    "messagesRead",
+    "messagesMove"
+  ],
+  "background": {
+    "scripts": ["background.js"]
+  },
+  "icons": {
+    "128": "icon.png"
+  },
+  "experiment_apis": {
+    "cardModifier": {
+      "schema": "schema.json",
+      "parent": {
+        "scopes": ["addon_parent"],
+        "paths": [["cardModifier"]],
+        "script": "implementation.js"
+      }
+    }
+  },
+  "applications": {
+    "gecko": {
+      "id": "quick-delete@your-domain.com",
+      "strict_min_version": "115.0",
+      "strict_max_version": "128.*"
+    }
+  }
+}
