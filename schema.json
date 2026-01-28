@@ -8,6 +8,23 @@
         "async": false,
         "parameters": []
       }
+        ,
+        {
+          "name": "add",
+          "type": "function",
+          "async": true,
+          "parameters": [
+            { "name": "windowId", "type": "number" }
+          ]
+        },
+        {
+          "name": "remove",
+          "type": "function",
+          "async": true,
+          "parameters": [
+            { "name": "windowId", "type": "number" }
+          ]
+        }
     ]
   }
 ]

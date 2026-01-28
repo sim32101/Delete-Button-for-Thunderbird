@@ -27,8 +27,7 @@
   "applications": {
     "gecko": {
       "id": "quick-delete@your-domain.com",
-      "strict_min_version": "115.0",
-      "strict_max_version": "128.*"
+      "strict_min_version": "140.0"
     }
   }
 }

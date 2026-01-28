@@ -31,21 +31,27 @@ Follow these manual installation steps:
 
 Optional: If you want to inspect the contents of the `.xpi`, open it with any ZIP tool.
 
-## 🛠 Configuration (Mandatory)
+## 🛠 Configuration
 
-### 1. Enable Stylesheet Customization
-For Thunderbird to recognize custom CSS, you must enable this hidden setting:
+### 1. Automatic CSS injection (recommended)
+The add-on injects the required CSS into Thunderbird's message-list document automatically. In normal use you do **not** need to create or modify `userChrome.css` — the add-on will apply the styles itself.
+
+### 2. Optional: Manual CSS (fallback)
+If you prefer to manage the CSS yourself (or if you encounter issues with automatic injection), you can still add the styles manually by enabling stylesheet customization and creating a `userChrome.css` file as described below.
+
+#### Enable Stylesheet Customization
+For Thunderbird to recognize custom CSS, enable this hidden setting:
 1. Open Thunderbird and go to **Settings**.
 2. Scroll to the bottom and click **Config Editor...** (search for `about:config`).
 3. Search for: `toolkit.legacyUserProfileCustomizations.stylesheets`
 4. Set it to **true**.
 5. Restart Thunderbird.
 
-### 2. Create userChrome.css
+#### Create userChrome.css
 1. Find your **Profile Folder**: Help > Troubleshooting Information > Profile Folder > Open Folder.
 2. Create a folder named `chrome` (all lowercase).
 3. Inside `chrome`, create a file named `userChrome.css`.
-4. Paste the following CSS code:
+4. Paste the following CSS code (optional):
 
 ```css
 /* =========================================
