@@ -169,25 +169,23 @@ var cardModifier = class extends (globalThis.ExtensionCommon?.ExtensionAPI || cl
           try {
             win = context.extension.windowManager.get(windowId).window;
           } catch (e) {
-            console.error("cardModifier: window lookup failed", e);
             return;
           }
 
           const doc = await getAbout3PaneDocument(win);
           if (!doc) {
-            console.warn("cardModifier: about:3pane not available", windowId);
             return;
           }
 
           const styleId = "styles-from-add-delete-button-addon";
 
-          // Erste CSS-Injektion (früh)
+          // First CSS injection (early)
           addDynamicCSS(doc, styleId, cssText);
 
-          // Warten bis Thread Cards existieren
+          // Wait until thread cards exist
           await waitForThreadCards(doc);
 
-          // CSS erneut setzen, damit ::after sicher greift
+          // Re-apply CSS to ensure ::after takes effect
           addDynamicCSS(doc, styleId, cssText);
 
           const handler = (e) => {
@@ -210,11 +208,11 @@ var cardModifier = class extends (globalThis.ExtensionCommon?.ExtensionAPI || cl
                 try {
                   win.goDoCommand("cmd_delete");
                 } catch (err) {
-                  console.error("Delete command failed", err);
+                  // ignore deletion errors
                 }
-              }, 100);
+              }, 130);
             } catch (err) {
-              console.error("cardModifier handler error", err);
+              // swallow handler errors
             }
           };
 

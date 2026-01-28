@@ -2,6 +2,13 @@
 
 This add-on allows you to delete messages directly from the message card list by clicking a trash icon.
 
+
+> **⚠️ Important — Functionality:**
+>
+> The logic behind this add-on is a practical but "clunky" workaround: when you click the designated icon area, the add-on first selects the card and then triggers the delete command after a 130ms delay.
+>
+> This synchronization delay is crucial. If the delay is too short for your specific system performance, the delete command might trigger before the new message is fully selected. This could result in deleting the previously selected email instead of the one you intended to delete. While this timing works reliably in my tests, please use it with caution, as system latency can affect the outcome.
+
 > **ℹ️ About this add-on:**
 >
 > This add-on was created with the help of AI and is provided as-is; it will most likely not receive future updates or active maintenance.
