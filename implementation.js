@@ -90,10 +90,6 @@ var cardModifier = class extends (globalThis.ExtensionCommon?.ExtensionAPI || cl
 
     return {
       cardModifier: {
-        init() {
-          // no-op: initialization is performed from the extension background script
-        },
-
         async add(windowId) {
           try {
             console.log('cardModifier.add called for windowId', windowId);
@@ -248,19 +244,5 @@ var cardModifier = class extends (globalThis.ExtensionCommon?.ExtensionAPI || cl
         }
       }
     };
-  }
-  // Clean up when the experiment is unloaded
-  /* Note: context.onShutdown is available in the Experiment implementation scope */
-  constructor() {
-    super(...arguments);
-    try {
-      const self = this;
-      // register shutdown handler
-      if (this && this.getAPI) {
-        // no-op here; cleanup is handled via getAPI registry when context provides onShutdown
-      }
-    } catch (e) {
-      // ignore
-    }
   }
 };

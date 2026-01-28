@@ -2,13 +2,6 @@
   {
     "namespace": "cardModifier",
     "functions": [
-      {
-        "name": "init",
-        "type": "function",
-        "async": false,
-        "parameters": []
-      }
-        ,
         {
           "name": "add",
           "type": "function",

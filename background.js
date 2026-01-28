@@ -1,18 +1,11 @@
-// Initialize experiment API and attach to existing and newly created windows
-browser.cardModifier.init();
-
 // Listen for new windows and instruct the experiment to add the UI for them
 browser.windows.onCreated.addListener(async (windowInfo) => {
 	try {
-		try {
-			const info = await browser.windows.get(windowInfo.id);
-			if (info && info.type === 'normal') {
-				await browser.cardModifier.add(windowInfo.id);
-			} else {
-				console.log('Skipping non-normal window onCreated', windowInfo.id, info && info.type);
-			}
-		} catch (e) {
-			console.error('Error checking window type onCreated', e);
+		// windowInfo from onCreated is already the Window object
+		if (windowInfo.type === 'normal') {
+			await browser.cardModifier.add(windowInfo.id);
+		} else {
+			console.log('Skipping non-normal window onCreated', windowInfo.id, windowInfo.type);
 		}
 	} catch (e) {
 		console.error("cardModifier.add error:", e);
