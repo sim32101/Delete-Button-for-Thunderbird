@@ -1,246 +1,249 @@
 var cardModifier = class extends (globalThis.ExtensionCommon?.ExtensionAPI || class {}) {
   getAPI(context) {
-    // Track per-window listeners and injected styles so we can clean up on shutdown
     const registry = new Map();
 
-    function addDynamicCSS(document, id, css) {
-      try {
-        const existing = document.getElementById(id);
-        if (existing) {
-          existing.remove();
+    // Try to obtain Services for a robust shutdown fallback
+    let Services = null;
+    try {
+      if (typeof ChromeUtils !== 'undefined' && ChromeUtils.import) {
+        try {
+          Services = ChromeUtils.import('resource://gre/modules/Services.jsm').Services;
+        } catch (e) {
+          Services = ChromeUtils.import('resource://gre/modules/Services.jsm');
         }
-        const style = document.createElement('style');
-        style.id = id;
-        style.textContent = css;
-        document.head.appendChild(style);
-      } catch (e) {
-        console.error('addDynamicCSS error', e);
+      } else if (typeof Components !== 'undefined' && Components.utils && Components.utils.import) {
+        try {
+          Services = Components.utils.import('resource://gre/modules/Services.jsm').Services;
+        } catch (e) {
+          Services = null;
+        }
       }
+    } catch (e) {
+      Services = null;
+    }
+
+    function addDynamicCSS(document, id, css) {
+      const existing = document.getElementById(id);
+      if (existing) {
+        existing.remove();
+      }
+      const style = document.createElement("style");
+      style.id = id;
+      style.textContent = css;
+      document.head.appendChild(style);
     }
 
     const cssText = `
 .thread-card-icon-info {
-    position: absolute !important;
-    bottom: -20px !important;
-    right: 0px !important;
-    top: auto !important;
+  position: absolute !important;
+  bottom: -20px !important;
+  right: 0px !important;
+  top: auto !important;
 
-    display: flex !important;
-    gap: 6px !important;
-    z-index: 9999 !important;
-    pointer-events: auto !important;
-    width: auto !important;
+  display: flex !important;
+  gap: 6px !important;
+  z-index: 10 !important;
+
+  pointer-events: auto !important;
+  width: auto !important;
 }
 
 .thread-card-icon-info::after {
-    content: "" !important;
-    display: flex !important;
-    align-items: center !important;
-    justify-content: center !important;
-    width: 24px !important;
-    height: 24px !important;
-    background-image: url("chrome://messenger/skin/icons/delete.svg") !important;
-    background-repeat: no-repeat !important;
-    background-position: center !important;
-    background-size: 16px 16px !important;
-    opacity: 0.6 !important;
-    cursor: pointer !important;
-    transition: all 0.15s ease !important;
-    pointer-events: auto !important;
+  content: "" !important;
+  display: flex !important;
+  align-items: center !important;
+  justify-content: center !important;
+  width: 24px !important;
+  height: 24px !important;
+  background-image: url("chrome://messenger/skin/icons/delete.svg") !important;
+  background-repeat: no-repeat !important;
+  background-position: center !important;
+  background-size: 16px 16px !important;
+  opacity: 0.6 !important;
+  cursor: pointer !important;
+  transition: all 0.15s ease !important;
+  pointer-events: auto !important;
 }
 
 .thread-card-icon-info::after:hover {
-    opacity: 1 !important;
-    background-color: rgba(255, 255, 255, 0.15) !important;
-    border-radius: 4px !important;
+  opacity: 1 !important;
+  background-color: rgba(255, 255, 255, 0.15) !important;
+  border-radius: 4px !important;
 }
 
 .thread-card-icon-info::after:active {
-    transform: scale(0.85) !important;
-    background-color: rgba(255, 255, 255, 0.25) !important;
+  transform: scale(0.85) !important;
+  background-color: rgba(255, 255, 255, 0.25) !important;
 }
 
 .thread-card-icon-info > * {
-    pointer-events: auto !important;
+  pointer-events: auto !important;
 }
 `;
 
-    // Ensure we remove injected styles and listeners if the experiment is shut down
-    // Register shutdown cleanup using whichever API the context provides
-    try {
-      const cleanup = () => {
+    async function getAbout3PaneDocument(win, retries = 5, delay = 200) {
+      for (let i = 0; i < retries; i++) {
         try {
-          for (const [windowId, entry] of registry.entries()) {
-            try { entry.doc.removeEventListener('mousedown', entry.handler, true); } catch (e) {}
-            try { const style = entry.doc.getElementById(entry.styleId); if (style) style.remove(); } catch (e) {}
-          }
-        } catch (e) {}
-        registry.clear();
-      };
-
-      if (context) {
-        if (typeof context.once === 'function') {
-          try { context.once('shutdown', cleanup); } catch (e) {}
-        }
-        if (context.onShutdown && typeof context.onShutdown.addListener === 'function') {
-          try { context.onShutdown.addListener(cleanup); } catch (e) {}
-        }
+          const doc = win.gTabmail?.currentAbout3Pane?.document;
+          if (doc) return doc;
+        } catch (_) {}
+        await new Promise(r => win.setTimeout(r, delay));
       }
-    } catch (e) {}
+      return null;
+    }
+
+    async function waitForThreadCards(doc, retries = 10, delay = 200) {
+      for (let i = 0; i < retries; i++) {
+        if (doc.querySelector(".thread-card-icon-info")) {
+          return true;
+        }
+        await new Promise(r => doc.defaultView.setTimeout(r, delay));
+      }
+      return false;
+    }
+
+    function cleanupAll() {
+      // First, remove handlers/styles we know about from the registry
+      for (const entry of registry.values()) {
+        try {
+          entry.doc.removeEventListener("mousedown", entry.handler, true);
+        } catch (_) {}
+
+        try {
+          const style = entry.doc.getElementById(entry.styleId);
+          if (style) style.remove();
+        } catch (_) {}
+      }
+      registry.clear();
+
+      // Fallback: if Services is available, enumerate all mail:3pane windows
+      // and remove any leftover handlers/styles that may have been attached directly to documents.
+      try {
+        if (Services && Services.wm) {
+          const enumerator = Services.wm.getEnumerator('mail:3pane');
+          while (enumerator.hasMoreElements()) {
+            try {
+              const win = enumerator.getNext();
+              const doc = win.gTabmail && win.gTabmail.currentAbout3Pane && win.gTabmail.currentAbout3Pane.document;
+              if (!doc) continue;
+
+              try {
+                // If the doc stored handler references, remove them
+                const handler = doc._quickDeleteHandler;
+                if (handler) {
+                  try { doc.removeEventListener('mousedown', handler, true); } catch (e) {}
+                  try { delete doc._quickDeleteHandler; } catch (e) {}
+                }
+              } catch (e) {}
+
+              try {
+                const sid = doc._quickDeleteStyleId || 'styles-from-add-delete-button-addon';
+                const style = doc.getElementById(sid);
+                if (style) style.remove();
+                try { delete doc._quickDeleteStyleId; } catch (e) {}
+              } catch (e) {}
+            } catch (e) {
+              // ignore per-window errors
+            }
+          }
+        }
+      } catch (e) {
+        // swallow fallback errors to avoid noisy failures during shutdown
+      }
+    }
+
+    context.callOnClose({
+      close() {
+        cleanupAll();
+      }
+    });
 
     return {
       cardModifier: {
         async add(windowId) {
-          try {
-            console.log('cardModifier.add called for windowId', windowId);
-
-            // Convert the extension windowId to the native window object
-            let win;
-            try {
-              win = context.extension.windowManager.get(windowId).window;
-            } catch (e) {
-              console.error('cardModifier: could not get window from windowManager', e, windowId);
-              return;
-            }
-            if (!win) {
-              console.error('cardModifier: native window not available for', windowId);
-              return;
-            }
-
-            // Robustly obtain the about:3pane document. It may not be immediately available.
-            const getAbout3PaneDocument = async (w, attempts = 6, delayMs = 250) => {
-              for (let i = 0; i < attempts; i++) {
-                try {
-                  const doc = w.gTabmail?.currentAbout3Pane?.document;
-                  if (doc) return doc;
-                } catch (e) {
-                  // ignore and retry
-                }
-                await new Promise(r => w.setTimeout(r, delayMs));
-              }
-              return null;
-            };
-
-            let about3paneDocument = await getAbout3PaneDocument(win);
-            let observer = null;
-            if (!about3paneDocument) {
-              console.warn('cardModifier: about3paneDocument not found immediately for window', windowId, '- attaching MutationObserver fallback');
-              // Fallback: observe the top-level document for changes that enable gTabmail/currentAbout3Pane
-              try {
-                const root = win.document && win.document.documentElement;
-                if (root) {
-                  await new Promise((resolve) => {
-                    const timeoutId = win.setTimeout(() => {
-                      if (observer) {
-                        try { observer.disconnect(); } catch (e) {}
-                      }
-                      resolve(null);
-                    }, 15000);
-
-                    observer = new win.MutationObserver(() => {
-                      try {
-                        const doc = win.gTabmail?.currentAbout3Pane?.document;
-                        if (doc) {
-                          try { observer.disconnect(); } catch (e) {}
-                          win.clearTimeout(timeoutId);
-                          resolve(doc);
-                        }
-                      } catch (e) {}
-                    });
-                    try {
-                      observer.observe(root, { childList: true, subtree: true });
-                    } catch (e) {
-                      console.warn('cardModifier: observer.observe failed', e);
-                      resolve(null);
-                    }
-                  });
-                }
-              } catch (e) {
-                console.warn('cardModifier: MutationObserver fallback failed', e);
-              }
-              about3paneDocument = win.gTabmail?.currentAbout3Pane?.document || null;
-            }
-
-            if (!about3paneDocument) {
-              console.error('cardModifier: about3paneDocument not available after fallback for window', windowId);
-              if (observer) try { observer.disconnect(); } catch (e) {}
-              return;
-            }
-
-            const styleId = 'styles-from-add-delete-button-addon';
-            addDynamicCSS(about3paneDocument, styleId, cssText);
-
-            // verify injection
-            try {
-              const verify = about3paneDocument.getElementById(styleId);
-              if (verify) console.log('cardModifier: injected style element', styleId, 'for window', windowId);
-              else console.warn('cardModifier: style element not present after injection', styleId, windowId);
-            } catch (e) {
-              console.warn('cardModifier: error verifying injected style', e);
-            }
-
-            const handler = (e) => {
-              try {
-                const iconContainer = e.target.closest('.thread-card-icon-info');
-                if (!iconContainer) return;
-                const rect = iconContainer.getBoundingClientRect();
-                const clickX = e.clientX - rect.left;
-                if (clickX < (rect.width - 25)) return;
-
-                const card = iconContainer.closest('tr, li, thread-card');
-                if (card) {
-                  e.stopImmediatePropagation();
-                  e.preventDefault();
-                  console.log('cardModifier: delete click detected, window', windowId);
-                  card.click();
-                  // allow selection to settle before deleting
-                  win.setTimeout(() => {
-                    try {
-                      win.goDoCommand('cmd_delete');
-                    } catch (err) {
-                      console.error('delete command failed', err);
-                    }
-                  }, 100);
-                }
-              } catch (err) {
-                console.error('cardModifier handler error', err);
-              }
-            };
-
-            about3paneDocument.addEventListener('mousedown', handler, true);
-
-            registry.set(windowId, { doc: about3paneDocument, handler, styleId, observer });
-          } catch (err) {
-            console.error('cardModifier.add error', err);
+          if (registry.has(windowId)) {
+            return;
           }
+
+          let win;
+          try {
+            win = context.extension.windowManager.get(windowId).window;
+          } catch (e) {
+            console.error("cardModifier: window lookup failed", e);
+            return;
+          }
+
+          const doc = await getAbout3PaneDocument(win);
+          if (!doc) {
+            console.warn("cardModifier: about:3pane not available", windowId);
+            return;
+          }
+
+          const styleId = "styles-from-add-delete-button-addon";
+
+          // Erste CSS-Injektion (früh)
+          addDynamicCSS(doc, styleId, cssText);
+
+          // Warten bis Thread Cards existieren
+          await waitForThreadCards(doc);
+
+          // CSS erneut setzen, damit ::after sicher greift
+          addDynamicCSS(doc, styleId, cssText);
+
+          const handler = (e) => {
+            try {
+              const iconContainer = e.target.closest(".thread-card-icon-info");
+              if (!iconContainer) return;
+
+              const rect = iconContainer.getBoundingClientRect();
+              const clickX = e.clientX - rect.left;
+              if (clickX < rect.width - 25) return;
+
+              const card = iconContainer.closest("tr, li, thread-card");
+              if (!card) return;
+
+              e.preventDefault();
+              e.stopImmediatePropagation();
+
+              card.click();
+              win.setTimeout(() => {
+                try {
+                  win.goDoCommand("cmd_delete");
+                } catch (err) {
+                  console.error("Delete command failed", err);
+                }
+              }, 100);
+            } catch (err) {
+              console.error("cardModifier handler error", err);
+            }
+          };
+
+          doc.addEventListener("mousedown", handler, true);
+          // store references on the document itself to help Services-based cleanup
+          try {
+            doc._quickDeleteHandler = handler;
+            doc._quickDeleteStyleId = styleId;
+          } catch (e) {
+            // ignore if properties cannot be set
+          }
+
+          registry.set(windowId, { doc, handler, styleId });
         },
 
         async remove(windowId) {
+          const entry = registry.get(windowId);
+          if (!entry) return;
+
           try {
-            const entry = registry.get(windowId);
-            if (!entry) return;
-            try {
-              entry.doc.removeEventListener('mousedown', entry.handler, true);
-            } catch (e) {
-              console.warn('remove listener failed', e);
-            }
-            try {
-              const style = entry.doc.getElementById(entry.styleId);
-              if (style) style.remove();
-            } catch (e) {
-              console.warn('remove style failed', e);
-            }
-            try {
-              if (entry.observer && typeof entry.observer.disconnect === 'function') {
-                try { entry.observer.disconnect(); } catch (e) { }
-              }
-            } catch (e) {
-              console.warn('remove style failed', e);
-            }
-            registry.delete(windowId);
-          } catch (err) {
-            console.error('cardModifier.remove error', err);
-          }
+            entry.doc.removeEventListener("mousedown", entry.handler, true);
+          } catch (_) {}
+
+          try {
+            const style = entry.doc.getElementById(entry.styleId);
+            if (style) style.remove();
+          } catch (_) {}
+
+          registry.delete(windowId);
         }
       }
     };
