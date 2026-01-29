@@ -1,7 +1,7 @@
 {
   "manifest_version": 2,
   "name": "Quick Card Delete Button",
-  "version": "2.1",
+  "version": "2.2",
   "description": "Deletes messages directly via an icon in the message list.",
   "author": "sim32101",
   "permissions": [
