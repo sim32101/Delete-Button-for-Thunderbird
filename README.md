@@ -15,7 +15,7 @@ This add-on allows you to delete messages directly from the message card list by
 
 ## 📥 Installation (.xpi File)
 
-The add-on might be available in the official Thunderbird Add-ons Store — please check there first. If you need to install it manually, use the following instructions.
+The add-on might be available in the official Thunderbird Add-ons Store — please check there first: https://addons.thunderbird.net/de/thunderbird/addon/quick-card-delete-button/. If you need to install it manually, use the following instructions.
 
 Follow these manual installation steps:
 
