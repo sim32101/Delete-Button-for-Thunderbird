@@ -28,6 +28,11 @@ var cardModifier = class extends (ExtensionCommon.ExtensionAPI) {
   width: auto !important;
 }
 
+/* Fix for Thread Top cards (parents) which need different positioning */
+:is(tr, li)[aria-expanded] .thread-card-icon-info {
+  bottom: -2px !important;
+}
+
 .thread-card-icon-info::after {
   content: "" !important;
   display: flex !important;
