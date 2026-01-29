@@ -95,6 +95,11 @@ var cardModifier = class extends (ExtensionCommon.ExtensionAPI) {
               doc.removeEventListener("mousedown", doc._quickDeleteHandler, true);
               delete doc._quickDeleteHandler;
             }
+            if (doc._quickDeleteDblHandler) {
+              doc.removeEventListener("dblclick", doc._quickDeleteDblHandler, true);
+              delete doc._quickDeleteDblHandler;
+              delete doc._quickDeleteSuppressUntil;
+            }
           }
         }      
       }
@@ -114,6 +119,20 @@ var cardModifier = class extends (ExtensionCommon.ExtensionAPI) {
 
           // Apply CSS.
           addDynamicCSS(doc, styleId, cssText);
+          // Suppress dblclicks briefly after a quick-delete action to avoid
+          // Thunderbird treating rapid clicks across cards as a double-click.
+          doc._quickDeleteSuppressUntil = 0;
+          doc._quickDeleteDblHandler = (ev) => {
+            try {
+              if (doc._quickDeleteSuppressUntil && Date.now() < doc._quickDeleteSuppressUntil) {
+                ev.preventDefault();
+                ev.stopImmediatePropagation();
+              }
+            } catch (err) {
+              // ignore
+            }
+          };
+          doc.addEventListener("dblclick", doc._quickDeleteDblHandler, true);
 
           doc._quickDeleteHandler = (e) => {
             try {
@@ -130,6 +149,12 @@ var cardModifier = class extends (ExtensionCommon.ExtensionAPI) {
               e.preventDefault();
               e.stopImmediatePropagation();
 
+              // Set suppression window to ignore dblclick events that follow
+              // quickly (clicks on different cards can otherwise be seen as dblclick).
+              doc._quickDeleteSuppressUntil = Date.now() + 450;
+
+              // Perform selection and delete. We keep the synthetic click to keep
+              // UI selection behavior but suppress following dblclick events.
               card.click();
               const win = e.target.ownerDocument.defaultView;
               win.setTimeout(() => {
