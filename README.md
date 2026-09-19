@@ -4,7 +4,7 @@ Quick Card Delete adds a native-looking trash icon to Thunderbird's Cards View s
 
 ## Installation
 
-This add-on has been forked and enhanced with additional features. If you are looking for more than just the basic delete function, you should check it out [there] (https://github.com/karoltheguy/Thunderbird-Cardview-QOL). I also think it makes more sense to publish that version in the add-on store, but that is not up to me.
+This add-on has been forked and enhanced with additional features. If you are looking for more than just the basic delete function, you should check it out [there](https://github.com/karoltheguy/Thunderbird-Cardview-QOL). I also think it makes more sense to publish that version in the add-on store, but that is not up to me.
 
 If you want to install it manually:
 
